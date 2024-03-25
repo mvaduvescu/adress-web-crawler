@@ -1,0 +1,19 @@
+{
+  "name": "adress-web-scrapper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@dsnp/parquetjs": "^1.6.2",
+    "axios": "^1.6.8",
+    "cheerio": "^1.0.0-rc.12",
+    "country-state-city": "^3.2.1"
+  }
+}
