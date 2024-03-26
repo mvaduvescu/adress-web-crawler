@@ -1,3 +1,4 @@
+import fs from 'fs';
 import parquetjs from "@dsnp/parquetjs";
 import axios from "axios";
 import cheerio from "cheerio";
@@ -13,6 +14,9 @@ while ((record = await cursor.next())) {
   domainList.push(domain);
 }
 
+const successfulData = [];
+const failedFetches = [];
+
 async function fetchAndParseInOrder(domains) {
   let successfulFetchCount = 0;
   let failedFetchCount = 0;
@@ -21,13 +25,22 @@ async function fetchAndParseInOrder(domains) {
     const result = await fetchAndParse(domain);
     if (result) {
       successfulFetchCount++;
+      console.log("Domains successfully fetched:", successfulFetchCount);
+      console.log("Domains failed to fetch:", failedFetchCount);
+      console.log("Total domains:", domains.length)
+      console.log("-------------------------------------------------");
     } else {
       failedFetchCount++;
+      failedFetches.push({ domain }); // Pushing domain name only
+      console.log("Domains successfully fetched:", successfulFetchCount);
+      console.log("Domains failed to fetch:", failedFetchCount);
+      console.log("Total domains:", domains.length)
+      console.log("-------------------------------------------------");
     }
   }
-
-  console.log("Total domains successfully fetched:", successfulFetchCount);
-  console.log("Total domains failed to fetch:", failedFetchCount);
+  
+  // Write failed fetches to a JSON file
+  fs.writeFileSync('failed_data.json', JSON.stringify(failedFetches, null, 2)); 
 }
 
 async function fetchAndParse(domain) {
@@ -52,16 +65,20 @@ async function fetchAndParse(domain) {
       const findInfo = (regex) => {
         const text = $("body").text();
         const match = text.match(regex);
-        return match && match[0].length <= 150 ? match[0] : "N/A";
+        return match && match[1] && match[1].length <= 150 ? match[1].trim() : "N/A";
       };
 
-      const cityRegex = /\b(?:city|town|village)\b\s*[,:]\s*([^\n]+)/i;
-      const postcodeRegex = /\b\d{5}\b/;
-      const roadRegex = /\b(?:street|road|avenue|lane|drive)\b\s*[,:]\s*([^\n]+)/i;
-      const roadNumberRegex = /\b\d{1,4}(?:\s*[a-zA-Z])?\b/;
-      const countryRegex = /\b(?:country|nation)\b\s*[,:]\s*([^\n]+)/i;
-      const regionRegex = /\b(?:region|state|province)\b\s*[,:]\s*([^\n]+)/i;
+      const locationRegex = /\b((?:[a-zA-Z\s]+\b(?:straße|weg|allee|platz|street|road|avenue|lane|drive|boulevard)\b\s*[,:]\s*\d{1,4}(?:\s*[a-zA-Z])?)|(?:[a-zA-Z\s]+\b(?:region|state|province|bundesland|kanton)\b\s*[,:]\s*[a-zA-Z\s]+)|(?:[a-zA-Z\s]+\b(?:country|nation|land)\b\s*[,:]\s*[a-zA-Z\s]+))/ig;
 
+      const cityRegex = /\b(?:city|stadt|town|ort|village|dorf)\b\s*[,:]\s*([^\n]+)/i;
+      const postcodeRegex = /\b(?:zip|zipcode|postal\s?code|plz|postleitzahl)\b\s*[,:]\s*([^\n]+)/i;
+      const roadRegex = /\b(?:street|st\.|strasse?|str\.|road|r\.|avenue|ave\.|lane|ln\.|drive|dr\.|boulevard|blvd\.|way|wy\.|platz|platz\.|platzweg)\b\s*[,:]\s*([^\n]+)/i;
+      const roadNumberRegex = /\b\d{1,4}(?:\s*[a-zA-Z])?\b/;
+      const countryRegex = /\b(?:country|nation|land)\b\s*[,:]\s*([^\n]+)/i;
+      const regionRegex = /\b(?:region|state|province|bundesland)\b\s*[,:]\s*([^\n]+)/i;
+
+      
+      let location = findInfo(locationRegex);
       let city = findInfo(cityRegex);
       let postcode = findInfo(postcodeRegex);
       let road = findInfo(roadRegex);
@@ -113,6 +130,7 @@ async function fetchAndParse(domain) {
       }
 
       console.log(`Domain: ${domain}`);
+      console.log(`Location: ${location}`);
       console.log(`City: ${city}`);
       console.log(`Postcode: ${postcode}`);
       console.log(`Road: ${road}`);
@@ -120,6 +138,21 @@ async function fetchAndParse(domain) {
       console.log(`Country: ${country}`);
       console.log(`Region: ${region}`);
       console.log("--------------------");
+
+      // Store successful fetches data
+      successfulData.push({
+        domain,
+        location,
+        city,
+        postcode,
+        road,
+        roadNumbers,
+        country,
+        region
+      });
+
+      // Write successful data to a JSON file
+      fs.writeFileSync('successful_data.json', JSON.stringify(successfulData, null, 2));
 
       return true;
 
@@ -136,5 +169,3 @@ async function fetchAndParse(domain) {
 }
 
 await fetchAndParseInOrder(domainList);
-
-
